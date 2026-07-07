@@ -43,19 +43,48 @@ class Program
     delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
 
     private const string CERTIFICATE_PASSWORD = "***REMOVED-CERTIFICATE-PASSWORD***";
+    private const string DEFAULT_COMPANY = "kargo-logistik-trade mchj";
 
-    static void Main()
+    static void Main(string[] args)
     {
+        // CLI argumentlarni parse qilish
+        string password = CERTIFICATE_PASSWORD;
+        string companyName = DEFAULT_COMPANY;
+        bool dialogOnly = false;
+
+        for (int i = 0; i < args.Length; i++)
+        {
+            if (args[i] == "--password" && i + 1 < args.Length)
+                password = args[++i];
+            else if (args[i] == "--company" && i + 1 < args.Length)
+                companyName = args[++i];
+            else if (args[i] == "--dialog-only")
+                dialogOnly = true;
+        }
+
+        // Dialog-only rejim: faqat E-IMZO dialog parolini kiritadi (brauzer ochilmaydi)
+        // Bu rejim Node.js automation tomonidan chaqiriladi — brauzer Playwright da ochiq bo'ladi
+        if (dialogOnly)
+        {
+            Console.WriteLine("=== E-IMZO dialog handler (dialog-only, yashirin) ===\n");
+            bool ok = EImzoWindowHider.WaitAndHandle(password, timeoutMs: 30_000);
+            Console.WriteLine(ok ? "SUCCESS" : "FAILED");
+            Environment.Exit(ok ? 0 : 1);
+            return;
+        }
+
+        // To'liq rejim: Chrome ochib, login qilib, dialog ni ham hal qiladi
         ChromeOptions options = new ChromeOptions();
         options.AddExcludedArgument("enable-automation");
         options.AddArgument("--disable-blink-features=AutomationControlled");
-        
+
         IWebDriver driver = new ChromeDriver(options);
 
         try
         {
             Console.WriteLine("=== Soliq.uz avtomatik login ===\n");
-            
+            Console.WriteLine($"Kompaniya: {companyName}\n");
+
             driver.Navigate().GoToUrl("https://my3.soliq.uz/login?type=legal");
             Thread.Sleep(3000);
 
@@ -65,7 +94,7 @@ class Program
 
             Console.WriteLine("2. Kompaniya nomi...");
             var search = driver.FindElement(By.XPath("//input[@placeholder='Ф.И.Ш. ёки корхона номини киритинг...']"));
-            search.SendKeys("kargo-logistik-trade mchj");
+            search.SendKeys(companyName);
             Thread.Sleep(1500);
 
             Console.WriteLine("3. Kompaniya tanlash...");
@@ -73,11 +102,14 @@ class Program
             Thread.Sleep(1500);
 
             Console.WriteLine("4. Kirish tugmasi...");
+            // Dialog paydo bo'lishi bilanoq yashirsin deb monitoringni oldin ishga tushiramiz
+            EImzoWindowHider.StartMonitoring(password);
             driver.FindElement(By.XPath("//button/span[text()='Кириш']")).Click();
 
-            Console.WriteLine("\n5. E-IMZO parol dialogini kutmoqda...\n");
-            
-            bool success = WaitAndEnterPassword(CERTIFICATE_PASSWORD);
+            Console.WriteLine("\n5. E-IMZO parol dialogini kutmoqda (yashirin rejim)...\n");
+            Thread.Sleep(5000); // Dialog yopilishini kutish
+
+            bool success = true;
 
             if (success)
             {
