@@ -42,13 +42,12 @@ class Program
 
     delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
 
-    private const string CERTIFICATE_PASSWORD = "***REMOVED-CERTIFICATE-PASSWORD***";
     private const string DEFAULT_COMPANY = "kargo-logistik-trade mchj";
 
     static void Main(string[] args)
     {
         // CLI argumentlarni parse qilish
-        string password = CERTIFICATE_PASSWORD;
+        string password = Environment.GetEnvironmentVariable("EIMZO_CERTIFICATE_PASSWORD");
         string companyName = DEFAULT_COMPANY;
         bool dialogOnly = false;
 
@@ -60,6 +59,12 @@ class Program
                 companyName = args[++i];
             else if (args[i] == "--dialog-only")
                 dialogOnly = true;
+        }
+
+        if (string.IsNullOrEmpty(password))
+        {
+            Console.Error.WriteLine("Xato: sertifikat paroli berilmagan. --password argumenti yoki EIMZO_CERTIFICATE_PASSWORD environment o'zgaruvchisini bering.");
+            Environment.Exit(1);
         }
 
         // Dialog-only rejim: faqat E-IMZO dialog parolini kiritadi (brauzer ochilmaydi)
