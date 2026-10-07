@@ -47,7 +47,7 @@ class Program
     static void Main(string[] args)
     {
         // CLI argumentlarni parse qilish
-        string password = Environment.GetEnvironmentVariable("EIMZO_CERTIFICATE_PASSWORD");
+        string? password = Environment.GetEnvironmentVariable("EIMZO_CERTIFICATE_PASSWORD");
         string companyName = DEFAULT_COMPANY;
         bool dialogOnly = false;
 
@@ -136,115 +136,6 @@ class Program
             Console.WriteLine("\nYopish uchun Enter bosing...");
             Console.ReadLine();
             driver.Quit();
-        }
-    }
-
-    static bool WaitAndEnterPassword(string password)
-    {
-        try
-        {
-            IntPtr hwnd = IntPtr.Zero;
-            string foundTitle = "";
-            string foundClass = "";
-            
-            Console.Write("E-IMZO parol dialogini qidiryapman");
-            
-            // 30 soniya kutish
-            for (int attempt = 0; attempt < 300; attempt++)
-            {
-                EnumWindows(delegate (IntPtr hWnd, IntPtr lParam)
-                {
-                    if (IsWindowVisible(hWnd))
-                    {
-                        StringBuilder className = new StringBuilder(256);
-                        GetClassName(hWnd, className, 256);
-                        string classStr = className.ToString();
-
-                        // Java Swing dialog - E-IMZO parol oynasi
-                        if (classStr == "SunAwtDialog")
-                        {
-                            // O'lchamni tekshirish (kichik dialog bo'lishi kerak)
-                            RECT rect;
-                            GetWindowRect(hWnd, out rect);
-                            int width = rect.Right - rect.Left;
-                            int height = rect.Bottom - rect.Top;
-
-                            // Parol dialogi odatda 400x250 atrofida
-                            if (width > 200 && width < 600 && height > 150 && height < 400)
-                            {
-                                hwnd = hWnd;
-                                foundClass = classStr;
-                                
-                                StringBuilder title = new StringBuilder(512);
-                                GetWindowText(hWnd, title, 512);
-                                foundTitle = title.ToString();
-                                
-                                return false; // Topildi, to'xtatish
-                            }
-                        }
-                    }
-                    return true;
-                }, IntPtr.Zero);
-
-                if (hwnd != IntPtr.Zero)
-                {
-                    Console.WriteLine($"\n✓ E-IMZO dialog topildi!");
-                    Console.WriteLine($"   Class: {foundClass}");
-                    break;
-                }
-
-                if (attempt % 10 == 0)
-                {
-                    Console.Write(".");
-                }
-
-                Thread.Sleep(100);
-            }
-
-            if (hwnd == IntPtr.Zero)
-            {
-                Console.WriteLine("\n✗ E-IMZO parol dialogi topilmadi!");
-                return false;
-            }
-
-            // Dialogni aktivlashtirish
-            Console.WriteLine("\n✓ Dialogni aktivlashtirmoqda...");
-            SetForegroundWindow(hwnd);
-            Thread.Sleep(1000);
-
-            var sim = new InputSimulator();
-
-            // Eski matnni o'chirish
-            Console.WriteLine("✓ Maydonni tozalash...");
-            sim.Keyboard.ModifiedKeyStroke(VirtualKeyCode.CONTROL, VirtualKeyCode.VK_A);
-            Thread.Sleep(150);
-            sim.Keyboard.KeyPress(VirtualKeyCode.DELETE);
-            Thread.Sleep(300);
-
-            // Parolni kiritish
-            Console.WriteLine($"✓ Parol kiritilmoqda: {new string('*', password.Length)}");
-            
-            foreach (char c in password)
-            {
-                sim.Keyboard.TextEntry(c.ToString());
-                Thread.Sleep(50); // Har bir belgidan keyin ozgina kutish
-            }
-            
-            Thread.Sleep(500);
-
-            // OK tugmasini bosish (Enter)
-            Console.WriteLine("✓ OK tugmasini bosish...");
-            sim.Keyboard.KeyPress(VirtualKeyCode.RETURN);
-            Thread.Sleep(500);
-
-            Console.WriteLine("✓ Parol muvaffaqiyatli kiritildi!");
-            return true;
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"\n✗ Xatolik: {ex.Message}");
-            Console.WriteLine($"Stack: {ex.StackTrace}");
-            return false;
         }
     }
 }
